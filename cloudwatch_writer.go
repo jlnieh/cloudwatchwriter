@@ -1,13 +1,13 @@
 package cloudwatchwriter
 
 import (
+	"context"
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/pkg/errors"
 	"gopkg.in/oleiade/lane.v1"
 )
@@ -34,10 +34,10 @@ const (
 
 // CloudWatchLogsClient represents the AWS cloudwatchlogs client that we need to talk to CloudWatch
 type CloudWatchLogsClient interface {
-	DescribeLogStreams(*cloudwatchlogs.DescribeLogStreamsInput) (*cloudwatchlogs.DescribeLogStreamsOutput, error)
-	CreateLogGroup(*cloudwatchlogs.CreateLogGroupInput) (*cloudwatchlogs.CreateLogGroupOutput, error)
-	CreateLogStream(*cloudwatchlogs.CreateLogStreamInput) (*cloudwatchlogs.CreateLogStreamOutput, error)
-	PutLogEvents(*cloudwatchlogs.PutLogEventsInput) (*cloudwatchlogs.PutLogEventsOutput, error)
+	DescribeLogStreams(ctx context.Context, params *cloudwatchlogs.DescribeLogStreamsInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogStreamsOutput, error)
+	CreateLogGroup(ctx context.Context, params *cloudwatchlogs.CreateLogGroupInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogGroupOutput, error)
+	CreateLogStream(ctx context.Context, params *cloudwatchlogs.CreateLogStreamInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error)
+	PutLogEvents(ctx context.Context, params *cloudwatchlogs.PutLogEventsInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error)
 }
 
 // CloudWatchWriter can be inserted into zerolog to send logs to CloudWatch.
@@ -55,8 +55,8 @@ type CloudWatchWriter struct {
 }
 
 // New returns a pointer to a CloudWatchWriter struct, or an error.
-func New(sess *session.Session, logGroupName, logStreamName string) (*CloudWatchWriter, error) {
-	return NewWithClient(cloudwatchlogs.New(sess), defaultBatchInterval, logGroupName, logStreamName)
+func New(cfg aws.Config, logGroupName, logStreamName string) (*CloudWatchWriter, error) {
+	return NewWithClient(cloudwatchlogs.NewFromConfig(cfg), defaultBatchInterval, logGroupName, logStreamName)
 }
 
 // NewWithClient returns a pointer to a CloudWatchWriter struct, or an error.
@@ -140,7 +140,7 @@ func (c *CloudWatchWriter) getNextSequenceToken() *string {
 
 // Write implements the io.Writer interface.
 func (c *CloudWatchWriter) Write(log []byte) (int, error) {
-	event := &cloudwatchlogs.InputLogEvent{
+	event := &types.InputLogEvent{
 		Message: aws.String(string(log)),
 		// Timestamp has to be in milliseconds since the epoch
 		Timestamp: aws.Int64(time.Now().UTC().UnixNano() / int64(time.Millisecond)),
@@ -157,7 +157,7 @@ func (c *CloudWatchWriter) Write(log []byte) (int, error) {
 }
 
 func (c *CloudWatchWriter) queueMonitor() {
-	var batch []*cloudwatchlogs.InputLogEvent
+	var batch []types.InputLogEvent
 	batchSize := 0
 	nextSendTime := time.Now().Add(c.getBatchInterval())
 
@@ -183,7 +183,7 @@ func (c *CloudWatchWriter) queueMonitor() {
 			continue
 		}
 
-		logEvent, ok := item.(*cloudwatchlogs.InputLogEvent)
+		logEvent, ok := item.(types.InputLogEvent)
 		if !ok || logEvent.Message == nil {
 			// This should not happen!
 			continue
@@ -212,7 +212,7 @@ func (c *CloudWatchWriter) queueMonitor() {
 }
 
 // Only allow 1 retry of an invalid sequence token.
-func (c *CloudWatchWriter) sendBatch(batch []*cloudwatchlogs.InputLogEvent, retryNum int) {
+func (c *CloudWatchWriter) sendBatch(batch []types.InputLogEvent, retryNum int) {
 	if retryNum > 1 || len(batch) == 0 {
 		return
 	}
@@ -224,10 +224,11 @@ func (c *CloudWatchWriter) sendBatch(batch []*cloudwatchlogs.InputLogEvent, retr
 		SequenceToken: c.getNextSequenceToken(),
 	}
 
-	output, err := c.client.PutLogEvents(input)
+	output, err := c.client.PutLogEvents(context.TODO(), input)
 	if err != nil {
-		if invalidSequenceTokenErr, ok := err.(*cloudwatchlogs.InvalidSequenceTokenException); ok {
-			c.setNextSequenceToken(invalidSequenceTokenErr.ExpectedSequenceToken)
+		var ist *types.InvalidSequenceTokenException
+		if errors.As(err, &ist) {
+			c.setNextSequenceToken(ist.ExpectedSequenceToken)
 			c.sendBatch(batch, retryNum+1)
 			return
 		}
@@ -262,17 +263,16 @@ func (c *CloudWatchWriter) setClosing() {
 // stream we're interested in -- primarily for the purpose of finding the value
 // of the next sequence token. If the log group doesn't exist, then we create
 // it, if the log stream doesn't exist, then we create it.
-func (c *CloudWatchWriter) getOrCreateLogStream() (*cloudwatchlogs.LogStream, error) {
+func (c *CloudWatchWriter) getOrCreateLogStream() (*types.LogStream, error) {
 	// Get the log streams that match our log group name and log stream
-	output, err := c.client.DescribeLogStreams(&cloudwatchlogs.DescribeLogStreamsInput{
+	output, err := c.client.DescribeLogStreams(context.TODO(), &cloudwatchlogs.DescribeLogStreamsInput{
 		LogGroupName:        c.logGroupName,
 		LogStreamNamePrefix: c.logStreamName,
 	})
 	if err != nil || output == nil {
-		awserror, ok := err.(awserr.Error)
-		// i.e. the log group does not exist
-		if ok && awserror.Code() == cloudwatchlogs.ErrCodeResourceNotFoundException {
-			_, err = c.client.CreateLogGroup(&cloudwatchlogs.CreateLogGroupInput{
+		var rnf *types.ResourceNotFoundException
+		if errors.As(err, &rnf) {
+			_, err = c.client.CreateLogGroup(context.TODO(), &cloudwatchlogs.CreateLogGroupInput{
 				LogGroupName: c.logGroupName,
 			})
 			if err != nil {
@@ -280,16 +280,15 @@ func (c *CloudWatchWriter) getOrCreateLogStream() (*cloudwatchlogs.LogStream, er
 			}
 			return c.getOrCreateLogStream()
 		}
-
 		return nil, errors.Wrap(err, "cloudwatchlogs.Client.DescribeLogStreams")
 	}
 
 	if len(output.LogStreams) > 0 {
-		return output.LogStreams[0], nil
+		return &output.LogStreams[0], nil
 	}
 
 	// No matching log stream, so we need to create it
-	_, err = c.client.CreateLogStream(&cloudwatchlogs.CreateLogStreamInput{
+	_, err = c.client.CreateLogStream(context.TODO(), &cloudwatchlogs.CreateLogStreamInput{
 		LogGroupName:  c.logGroupName,
 		LogStreamName: c.logStreamName,
 	})
@@ -298,5 +297,5 @@ func (c *CloudWatchWriter) getOrCreateLogStream() (*cloudwatchlogs.LogStream, er
 	}
 
 	// We can just return an empty log stream as the initial sequence token would be nil anyway.
-	return &cloudwatchlogs.LogStream{}, nil
+	return &types.LogStream{}, nil
 }
