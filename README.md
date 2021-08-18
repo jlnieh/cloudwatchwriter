@@ -1,5 +1,6 @@
 # cloudwatchwriter
-Package to enable sending logs from zerolog to AWS CloudWatch.
+
+Package to enable sending logs from zerolog to AWS CloudWatch with the AWS SDK for Go V2.
 
 ## Usage
 
