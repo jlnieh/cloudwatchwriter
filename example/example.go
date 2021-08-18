@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/mec07/cloudwatchwriter"
+	"github.com/aws/aws-sdk-go-v2/aws/config"
+	"github.com/aws/aws-sdk-go-v2/aws/credentials"
+	"github.com/jlnieh/cloudwatchwriter"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -35,15 +35,15 @@ func main() {
 }
 
 func newCloudWatchLogger(accessKeyID, secretKey string) (zerolog.Logger, func(), error) {
-	sess, err := session.NewSession(&aws.Config{
-		Region:      aws.String(region),
-		Credentials: credentials.NewStaticCredentials(accessKeyID, secretKey, ""),
-	})
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(region),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretKey, "")),
+	)
 	if err != nil {
-		return log.Logger, nil, fmt.Errorf("session.NewSession: %w", err)
+		return log.Logger, nil, fmt.Errorf("config.LoadDefaultConfig: %w", err)
 	}
 
-	cloudWatchWriter, err := cloudwatchwriter.New(sess, logGroupName, logStreamName)
+	cloudWatchWriter, err := cloudwatchwriter.New(cfg, logGroupName, logStreamName)
 	if err != nil {
 		return log.Logger, nil, fmt.Errorf("cloudwatchwriter.New: %w", err)
 	}

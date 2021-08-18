@@ -1,8 +1,8 @@
-module github.com/mec07/cloudwatchwriter/example
+module github.com/jlnieh/cloudwatchwriter/example
 
-go 1.14
+go 1.16
 
 require (
-	github.com/mec07/cloudwatchwriter v0.2.0 // indirect
+	github.com/jlnieh/cloudwatchwriter v0.3.0 // indirect
 	github.com/rs/zerolog v1.19.0 // indirect
 )
