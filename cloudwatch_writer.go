@@ -183,7 +183,7 @@ func (c *CloudWatchWriter) queueMonitor() {
 			continue
 		}
 
-		logEvent, ok := item.(types.InputLogEvent)
+		logEvent, ok := item.(*types.InputLogEvent)
 		if !ok || logEvent.Message == nil {
 			// This should not happen!
 			continue
@@ -199,7 +199,7 @@ func (c *CloudWatchWriter) queueMonitor() {
 			nextSendTime = time.Now().Add(c.getBatchInterval())
 		}
 
-		batch = append(batch, logEvent)
+		batch = append(batch, *logEvent)
 		batchSize += messageSize
 
 		if len(batch) >= maxNumLogEvents {
