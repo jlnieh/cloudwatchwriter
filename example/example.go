@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aws/aws-sdk-go-v2/aws/config"
-	"github.com/aws/aws-sdk-go-v2/aws/credentials"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/tracmo/cloudwatchwriter"
