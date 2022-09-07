@@ -7,9 +7,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws/config"
 	"github.com/aws/aws-sdk-go-v2/aws/credentials"
-	"github.com/jlnieh/cloudwatchwriter"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/tracmo/cloudwatchwriter"
 )
 
 const (

@@ -29,7 +29,7 @@ import (
     "github.com/aws/aws-sdk-go-v2/aws"
     "github.com/aws/aws-sdk-go-v2/aws/config"
     "github.com/aws/aws-sdk-go-v2/aws/credentials"
-    "github.com/jlnieh/cloudwatchwriter"
+    "github.com/tracmo/cloudwatchwriter"
     "github.com/rs/zerolog/log"
 )
 
@@ -69,7 +69,7 @@ If you prefer to use AWS IAM credentials that are saved in the usual location on
 cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
 ```
 
-For more details, see: https://docs.aws.amazon.com/sdk-for-go/api/aws/session/.
+For more details, see: <https://docs.aws.amazon.com/sdk-for-go/api/aws/session/>.
 See the example directory for a working example.
 
 ### Write to CloudWatch and the console
@@ -112,7 +112,7 @@ logger := zerolog.New(zerolog.MultiLevelWriter(consoleWriter, cloudWatchWriter))
 
 #### Batch interval
 
-The logs are sent in batches because AWS has a maximum of 5 PutLogEvents requests per second per log stream (https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html).
+The logs are sent in batches because AWS has a maximum of 5 PutLogEvents requests per second per log stream (<https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html>).
 The default value of the batch period is 5 seconds, which means it will send the a batch of logs at least once every 5 seconds.
 Batches of logs will be sent earlier if the size of the collected logs exceeds 1MB (another AWS restriction).
 To change the batch frequency, you can set the time interval between batches to a smaller or larger value, e.g. 1 second:
@@ -129,6 +129,6 @@ The batch interval is not guaranteed as two things can alter how often the batch
 
 ## Acknowledgements
 
-Much thanks has to go to the creator of `zerolog` (https://github.com/rs/zerolog), for creating such a good logger.
-Thanks must go to the writer of `logrus-cloudwatchlogs` (https://github.com/kdar/logrus-cloudwatchlogs) as I found it a helpful resource for interfacing with `cloudwatchlogs`.
-Thanks also goes to the writer of this: https://gist.github.com/asdine/f821abe6189a04250ae61b77a3048bd9, which I also found helpful for extracting logs from `zerolog`.
+Much thanks has to go to the creator of `zerolog` (<https://github.com/rs/zerolog>), for creating such a good logger.
+Thanks must go to the writer of `logrus-cloudwatchlogs` (<https://github.com/kdar/logrus-cloudwatchlogs>) as I found it a helpful resource for interfacing with `cloudwatchlogs`.
+Thanks also goes to the writer of this: <https://gist.github.com/asdine/f821abe6189a04250ae61b77a3048bd9>, which I also found helpful for extracting logs from `zerolog`.

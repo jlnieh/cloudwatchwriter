@@ -12,9 +12,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
-	"github.com/jlnieh/cloudwatchwriter"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/tracmo/cloudwatchwriter"
 )
 
 const sequenceToken = "next-sequence-token"

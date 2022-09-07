@@ -1,4 +1,4 @@
-module github.com/jlnieh/cloudwatchwriter
+module github.com/tracmo/cloudwatchwriter
 
 go 1.16
 
